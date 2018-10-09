@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "385482427637",
+    "firebase_url": "https://chat-9a6ba.firebaseio.com",
+    "project_id": "chat-9a6ba",
+    "storage_bucket": "chat-9a6ba.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:385482427637:android:cd85f51321fb7e08",
+        "android_client_info": {
+          "package_name": "com.tohami.example.myflutterapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "385482427637-7sfgp65fir15fpdfreh40dhstfublufq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB3A4qPFlv6n0m8acbcPvU8eY7g-uPWOlQ"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
