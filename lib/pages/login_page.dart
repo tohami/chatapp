@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -138,6 +140,12 @@ class _LoginPageState extends State<LoginPage>
     ]);
 
     _pageController = PageController();
+
+    _auth.onAuthStateChanged.listen((user){
+      if(user != null){
+        MyNavigator.goToChatPage(context) ;
+      }
+    }) ;
   }
 
   void showInSnackBar(String value) {
@@ -334,7 +342,8 @@ class _LoginPageState extends State<LoginPage>
                     onPressed: () =>
                     //todo login
                     //showInSnackBar("Login button pressed")),
-                    MyNavigator.goToChatPage(context)
+//                    MyNavigator.goToChatPage(context)
+                    _singInWithEmailAndPassword()
                 )
               ),
             ],
@@ -633,7 +642,7 @@ class _LoginPageState extends State<LoginPage>
                       ),
                     ),
                     onPressed: () =>
-                        showInSnackBar("SignUp button pressed")),
+                      _signUpWithEmailAndPassword()),
               ),
             ],
           ),
@@ -664,9 +673,94 @@ class _LoginPageState extends State<LoginPage>
     });
   }
 
+
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  void _singInWithEmailAndPassword(){
+    String email = loginEmailController.text ;
+    if (email.isEmpty || validateEmail(email)!= null) {
+      showInSnackBar(validateEmail(email)) ;
+      return ;
+    }
+    String password = loginPasswordController.text ;
+    if(password.isEmpty || password.length < 6){
+      showInSnackBar("Password must be more than 6 characters") ;
+      return ;
+    }
+    //attemp signin request
+    _auth.signInWithEmailAndPassword(email: email, password: password).catchError((error){
+      PlatformException exception = error ;
+      showInSnackBar(exception.message) ;
+    }) ;
+  }
+
+  _signUpWithEmailAndPassword() {
+
+    String name = signupNameController.text ;
+    if (name.isEmpty || validateName(name) != null) {
+      showInSnackBar(validateName(name)) ;
+      return ;
+    }
+
+    String email = signupEmailController.text ;
+    if (email.isEmpty || validateEmail(email)!= null) {
+      showInSnackBar(validateEmail(email)) ;
+      return ;
+    }
+    String password = signupPasswordController.text ;
+    if(password.isEmpty || password.length < 6){
+      showInSnackBar("Password must be more than 6 characters") ;
+      return ;
+    }
+
+    String passwordConfirm = signupConfirmPasswordController.text ;
+    if(password != passwordConfirm){
+      showInSnackBar("Passwords does not match each other") ;
+    }
+
+    //attemp signin request
+    _auth.createUserWithEmailAndPassword(email: email, password: password ).catchError((error){
+      PlatformException exception = error ;
+      showInSnackBar(exception.message) ;
+    }).then((user) {
+        Firestore.instance.collection('users').document().setData({
+          'name': name,
+          'uid': user.uid,
+          'email': user.email,
+          'isEmailVerified': user.isEmailVerified,
+          'photoUrl': user.photoUrl,
+        });
+    }) ;
+  }
+
   void _toggleSignupConfirm() {
     setState(() {
       _obscureTextSignupConfirm = !_obscureTextSignupConfirm;
     });
+  }
+
+  String validateName(String value) {
+    if (value.length < 3)
+      return 'Name must be more than 2 charater';
+    else
+      return null;
+  }
+
+  String validateMobile(String value) {
+// Indian Mobile number are of 10 digit only
+    if (value.length != 10)
+      return 'Mobile Number must be of 10 digit';
+    else
+      return null;
+  }
+
+  String validateEmail(String value) {
+    Pattern pattern =
+        r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$';
+    RegExp regex = new RegExp(pattern);
+    if (!regex.hasMatch(value))
+      return 'Enter Valid Email';
+    else
+      return null;
   }
 }
