@@ -9,4 +9,12 @@ class MyNavigator {
   static void goToChatPage(BuildContext context) {
     Navigator.pushReplacementNamed(context, "/chat");
   }
+
+  static void goToHomePage(BuildContext context) {
+    Navigator.pushReplacementNamed(context, "/home");
+  }
+
+  static void goToContactsPage(BuildContext context) {
+    Navigator.pushNamed(context, "/contacts");
+  }
 }

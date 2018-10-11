@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:my_flutter_app/style/theme.dart' as Theme;
 import 'package:my_flutter_app/utils/bubble_indication_painter.dart';
 import 'package:my_flutter_app/utils/my_navigator.dart';
@@ -143,7 +146,7 @@ class _LoginPageState extends State<LoginPage>
 
     _auth.onAuthStateChanged.listen((user){
       if(user != null){
-        MyNavigator.goToChatPage(context) ;
+        MyNavigator.goToHomePage(context) ;
       }
     }) ;
   }
@@ -432,7 +435,7 @@ class _LoginPageState extends State<LoginPage>
               Padding(
                 padding: EdgeInsets.only(top: 10.0),
                 child: GestureDetector(
-                  onTap: () => showInSnackBar("Google button pressed"),
+                  onTap: () => _signUpWithGoogle(),
                   child: Container(
                     padding: const EdgeInsets.all(15.0),
                     decoration: new BoxDecoration(
@@ -675,6 +678,8 @@ class _LoginPageState extends State<LoginPage>
 
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = new GoogleSignIn();
+
 
   void _singInWithEmailAndPassword(){
     String email = loginEmailController.text ;
@@ -694,7 +699,7 @@ class _LoginPageState extends State<LoginPage>
     }) ;
   }
 
-  _signUpWithEmailAndPassword() {
+  void _signUpWithEmailAndPassword() {
 
     String name = signupNameController.text ;
     if (name.isEmpty || validateName(name) != null) {
@@ -731,6 +736,44 @@ class _LoginPageState extends State<LoginPage>
           'photoUrl': user.photoUrl,
         });
     }) ;
+  }
+
+  void _signUpWithGoogle() async{
+    final GoogleSignInAccount googleUser = await _googleSignIn.signIn();
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+    _auth.signInWithGoogle(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    ).then((user){
+
+
+      Firestore.instance.collection('users').where('uid' , isEqualTo: user.uid).getDocuments().then((docs) {
+        if(docs.documents.length>0){
+          //already exist user 
+          docs.documents[0].reference.updateData({
+            'name': user.displayName,
+            'uid': user.uid,
+            'email': user.email,
+            'isEmailVerified': user.isEmailVerified,
+            'photoUrl': user.photoUrl,
+          }) ;
+        }else {
+          //new user
+          Firestore.instance.collection('users').document().setData({
+            'name': user.displayName,
+            'uid': user.uid,
+            'email': user.email,
+            'isEmailVerified': user.isEmailVerified,
+            'photoUrl': user.photoUrl,
+          });
+        }
+      }) ;
+
+    }).catchError((error){
+      PlatformException exception = error ;
+      showInSnackBar(exception.message) ;
+    });
   }
 
   void _toggleSignupConfirm() {

@@ -8,14 +8,16 @@ import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:my_flutter_app/utils/my_navigator.dart';
 import 'package:my_flutter_app/widgets/ChatMessageListItem.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 
-final googleSignIn = new GoogleSignIn();
 final analytics = new FirebaseAnalytics();
-final auth = FirebaseAuth.instance;
-var currentUserEmail;
+final _auth = FirebaseAuth.instance;
+
+FirebaseUser _currentUser;
+
 var _scaffoldContext;
 
 class ChatScreen extends StatefulWidget {
@@ -30,6 +32,19 @@ class ChatScreenState extends State<ChatScreen> {
       new TextEditingController();
   bool _isComposingMessage = false;
   final reference = FirebaseDatabase.instance.reference().child('messages');
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    _auth.onAuthStateChanged.listen((user) {
+      if (user == null) {
+        MyNavigator.splashGoToLoginPage(context);
+      } else {
+        _currentUser = user;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,8 +68,10 @@ class ChatScreenState extends State<ChatScreen> {
                   reverse: true,
                   sort: (a, b) => b.key.compareTo(a.key),
                   //comparing timestamp of messages to check which one would appear first
-                  itemBuilder: (BuildContext context, DataSnapshot messageSnapshot,
-                      Animation<double> animation , int index) {
+                  itemBuilder: (BuildContext context,
+                      DataSnapshot messageSnapshot,
+                      Animation<double> animation,
+                      int index) {
                     return new ChatMessageListItem(
                       messageSnapshot: messageSnapshot,
                       animation: animation,
@@ -121,8 +138,11 @@ class ChatScreenState extends State<ChatScreen> {
                       color: Theme.of(context).accentColor,
                     ),
                     onPressed: () async {
-                      await _ensureLoggedIn();
-                      File imageFile = await ImagePicker.pickImage(source: ImageSource.gallery);
+                      if (_currentUser == null)
+                        _currentUser = await _auth.currentUser();
+
+                      File imageFile = await ImagePicker.pickImage(
+                          source: ImageSource.gallery);
                       int timestamp = new DateTime.now().millisecondsSinceEpoch;
                       StorageReference storageReference = FirebaseStorage
                           .instance
@@ -132,13 +152,18 @@ class ChatScreenState extends State<ChatScreen> {
 //                      StorageUploadTask uploadTask =
 //                          storageReference.put(imageFile);
 //                      String  downloadUrl = (await uploadTask.future).downloadUrl;
-                      
-                      String downloadUrl = "" ;
-                      await storageReference.put(imageFile).onComplete.then((val) {
+
+                      String downloadUrl = "";
+                      await storageReference
+                          .put(imageFile)
+                          .onComplete
+                          .then((val) {
                         val.ref.getDownloadURL().then((val) {
                           print(val);
                           _sendMessage(
-                              messageText: null, imageUrl: val.toString()); //Val here is Already String
+                              messageText: null,
+                              imageUrl:
+                                  val.toString()); //Val here is Already String
                         });
                       });
                     }),
@@ -174,46 +199,27 @@ class ChatScreenState extends State<ChatScreen> {
       _isComposingMessage = false;
     });
 
-    await _ensureLoggedIn();
+    if (_currentUser == null)
+      _currentUser = await _auth.currentUser();
+
     _sendMessage(messageText: text, imageUrl: null);
   }
 
   void _sendMessage({String messageText, String imageUrl}) {
     reference.push().set({
       'text': messageText,
-      'email': googleSignIn.currentUser.email,
+      'email': _currentUser.email,
       'imageUrl': imageUrl,
-      'senderName': googleSignIn.currentUser.displayName,
-      'senderPhotoUrl': googleSignIn.currentUser.photoUrl,
+      'senderName': _currentUser.displayName,
+      'senderPhotoUrl': _currentUser.photoUrl,
     });
 
     analytics.logEvent(name: 'send_message');
   }
 
-  Future<Null> _ensureLoggedIn() async {
-    GoogleSignInAccount signedInUser = googleSignIn.currentUser;
-    if (signedInUser == null)
-      signedInUser = await googleSignIn.signInSilently();
-    if (signedInUser == null) {
-      await googleSignIn.signIn();
-      analytics.logLogin();
-    }
-
-    currentUserEmail = googleSignIn.currentUser.email;
-
-    if (await auth.currentUser() == null) {
-      GoogleSignInAuthentication credentials =
-          await googleSignIn.currentUser.authentication;
-      await auth.signInWithGoogle(
-          idToken: credentials.idToken, accessToken: credentials.accessToken);
-    }
-  }
-
   Future _signOut() async {
-    await auth.signOut();
-    googleSignIn.signOut();
-    Scaffold
-        .of(_scaffoldContext)
+    await _auth.signOut();
+    Scaffold.of(_scaffoldContext)
         .showSnackBar(new SnackBar(content: new Text('User logged out')));
   }
 }
